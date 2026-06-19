@@ -3,32 +3,25 @@ package com.ticwatch.solar
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.unit.dp
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.material.Scaffold
-import androidx.wear.compose.material.Text
-import kotlinx.coroutines.delay
+import com.google.gson.annotations.SerializedName // Importante añadir esto
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.delay // Importante para el bucle
 
+// Modelo de datos con mapeo correcto a tus variables de Node-RED
 data class SolarData(
-    val produccion: Float,
-    val excedentes: Float,
-    val consumo: Float,
-    val balanceNeto: Float
+    @SerializedName("P_PRODUCCION") val produccion: Float,
+    @SerializedName("P_EXCEDENTE") val excedentes: Float,
+    @SerializedName("P_AUTOCONSUMO") val consumo: Float,
+    @SerializedName("P_BALANCENETO") val balanceNeto: Float
 )
 
 interface SolarApiService {
@@ -39,11 +32,18 @@ interface SolarApiService {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
+        val client = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build()
+
         val retrofit = Retrofit.Builder()
             .baseUrl("http://192.168.1.59:1880/")
+            .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+
         val solarApi = retrofit.create(SolarApiService::class.java)
 
         setContent {
@@ -53,63 +53,33 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun SolarDashboardScreen(solarApi: SolarApiService) {
-    var solarData by remember { mutableStateOf(SolarData(0f, 0f, 0f, 0f)) }
+fun SolarDashboardScreen(api: SolarApiService) {
+    var solarData by remember { mutableStateOf<SolarData?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Bucle infinito que refresca cada 5 segundos
     LaunchedEffect(Unit) {
         while (true) {
             try {
-                solarData = solarApi.getSolarData()
+                solarData = api.getSolarData()
+                errorMessage = null // Si va bien, borramos el error
             } catch (e: Exception) {
-                // Silenciamos errores de red en la UI para no interrumpir
+                errorMessage = "Error: ${e.message}"
             }
-            delay(5000)
+            delay(5000) // Espera 5 segundos antes de la siguiente petición
         }
     }
 
-    Scaffold(modifier = Modifier.background(Color.Black)) {
-        ScalingLazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            item { Spacer(modifier = Modifier.height(30.dp)) }
-            item { Gauge180(solarData.produccion, 8000f, "Prod", Color.Yellow) }
-            item { Spacer(modifier = Modifier.height(10.dp)) }
-            item { Gauge180(solarData.consumo, 8000f, "Cons", Color.Red) }
-            item { Spacer(modifier = Modifier.height(10.dp)) }
-            item { Gauge180(solarData.excedentes, 8000f, "Exced", Color.Green) }
-            item { Spacer(modifier = Modifier.height(10.dp)) }
-            item { Gauge180(solarData.balanceNeto, 8000f, "Red", Color.Blue) }
-            item { Spacer(modifier = Modifier.height(30.dp)) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (errorMessage != null) {
+            Text(text = errorMessage!!)
+        } else if (solarData != null) {
+            Text(text = "Prod: ${solarData!!.produccion} W")
+            Text(text = "Cons: ${solarData!!.consumo} W")
+            Text(text = "Exc: ${solarData!!.excedentes} W")
+            Text(text = "Bal: ${solarData!!.balanceNeto} W")
+        } else {
+            Text(text = "Conectando...")
         }
-    }
-}
-
-@Composable
-fun Gauge180(value: Float, maxValue: Float, label: String, color: Color) {
-    val percentage = (value / maxValue).coerceIn(0f, 1f)
-    val needleAngle = -90f + (180f * percentage)
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Canvas(modifier = Modifier.size(90.dp, 45.dp)) {
-            drawArc(
-                color = Color.DarkGray, startAngle = 180f, sweepAngle = 180f,
-                useCenter = false, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
-                size = Size(size.width, size.height * 2)
-            )
-            drawArc(
-                color = color, startAngle = 180f, sweepAngle = 180f * percentage,
-                useCenter = false, style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
-                size = Size(size.width, size.height * 2)
-            )
-            rotate(degrees = needleAngle, pivot = Offset(size.width / 2, size.height)) {
-                drawLine(
-                    color = Color.White, start = Offset(size.width / 2, size.height),
-                    end = Offset(size.width / 2, size.height - 35.dp.toPx()),
-                    strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round
-                )
-            }
-        }
-        Text(text = "$label: ${value.toInt()}W", color = Color.White)
     }
 }
