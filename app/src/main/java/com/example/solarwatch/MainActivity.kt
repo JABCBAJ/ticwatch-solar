@@ -1,4 +1,4 @@
-package com.ticwatch-solar
+package com.ticwatch.solar
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
