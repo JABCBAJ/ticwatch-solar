@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         val retrofit = Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:1880/")
+            .baseUrl("http://192.168.1.59:1880/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         val solarApi = retrofit.create(SolarApiService::class.java)
