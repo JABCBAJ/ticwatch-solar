@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.ticwatch-solar"
+    namespace = "com.ticwatch.solar"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.ticwatch-solar"
+        applicationId = "com.ticwatch.solar"
         minSdk = 30
         targetSdk = 33
         versionCode = 1
