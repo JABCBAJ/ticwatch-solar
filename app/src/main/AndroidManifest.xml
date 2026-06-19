@@ -7,7 +7,7 @@
     <application
         android:allowBackup="true"
         android:icon="@android:drawable/ic_menu_info_details"
-        android:label="ticwatch-solar"
+        android:label="ticwatch.solar"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.DeviceDefault">
