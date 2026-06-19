@@ -3,20 +3,24 @@ package com.ticwatch.solar
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.google.gson.annotations.SerializedName // Importante añadir esto
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.wear.compose.material.Text
+import androidx.wear.compose.material.MaterialTheme
+import com.google.gson.annotations.SerializedName
+import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.delay // Importante para el bucle
 
-// Modelo de datos con mapeo correcto a tus variables de Node-RED
+// 1. Modelo de datos con mapeo exacto a Node-RED
 data class SolarData(
     @SerializedName("P_PRODUCCION") val produccion: Float,
     @SerializedName("P_EXCEDENTE") val excedentes: Float,
@@ -34,8 +38,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val client = OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(5, TimeUnit.SECONDS)
             .build()
 
         val retrofit = Retrofit.Builder()
@@ -47,39 +50,42 @@ class MainActivity : ComponentActivity() {
         val solarApi = retrofit.create(SolarApiService::class.java)
 
         setContent {
-            SolarDashboardScreen(solarApi)
+            MaterialTheme {
+                SolarDashboardScreen(solarApi)
+            }
         }
     }
 }
 
 @Composable
 fun SolarDashboardScreen(api: SolarApiService) {
-    var solarData by remember { mutableStateOf<SolarData?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var data by remember { mutableStateOf<SolarData?>(null) }
+    var status by remember { mutableStateOf("Conectando...") }
 
-    // Bucle infinito que refresca cada 5 segundos
     LaunchedEffect(Unit) {
         while (true) {
             try {
-                solarData = api.getSolarData()
-                errorMessage = null // Si va bien, borramos el error
+                data = api.getSolarData()
+                status = "OK"
             } catch (e: Exception) {
-                errorMessage = "Error: ${e.message}"
+                status = "Error: ${e.message?.take(15)}"
             }
-            delay(5000) // Espera 5 segundos antes de la siguiente petición
+            delay(5000)
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (errorMessage != null) {
-            Text(text = errorMessage!!)
-        } else if (solarData != null) {
-            Text(text = "Prod: ${solarData!!.produccion} W")
-            Text(text = "Cons: ${solarData!!.consumo} W")
-            Text(text = "Exc: ${solarData!!.excedentes} W")
-            Text(text = "Bal: ${solarData!!.balanceNeto} W")
+    Column(
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (data != null) {
+            Text(text = "Prod: ${data!!.produccion}W", color = Color.Yellow)
+            Text(text = "Cons: ${data!!.consumo}W", color = Color.Red)
+            Text(text = "Exc: ${data!!.excedentes}W", color = Color.Green)
+            Text(text = "Bal: ${data!!.balanceNeto}W", color = Color.Cyan)
         } else {
-            Text(text = "Conectando...")
+            Text(text = status, color = Color.White)
         }
     }
 }
