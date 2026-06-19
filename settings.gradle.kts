@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "SolarWatch"
+rootProject.name = "ticwatch-solar"
 include(":app")
